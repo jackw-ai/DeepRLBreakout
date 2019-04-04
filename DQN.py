@@ -5,18 +5,19 @@ import tensorflow as tf
 from collections import deque
 from skimage.color import rgb2gray
 from skimage.transform import resize
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.optimizers import RMSprop
-from keras.layers import Dense, Flatten
+from keras.layers import Input, Dense, Flatten, Lambda, add
 from keras.layers.convolutional import Conv2D
 from keras import backend as K
 
-EPISODES = 50000
+EPISODES = 10000
+
 
 class DQN:
-    ''' main DQN class for training model for vanilla and Doubled DQN architecture '''
+    ''' main DQN class for training atari breakout ai model for various DQN architectures: vanilla, double, dueling '''
     
-    def __init__(self, action_size = 3, double = False, load_model = False):
+    def __init__(self, action_size = 3, double = False, dueling = False, load_model = False):
         
         self.load_model = load_model
         
@@ -25,6 +26,9 @@ class DQN:
 
         # whether to use DDQN architecture
         self.double = double
+        
+        # whether to use Dueling architecture
+        self.dueling = dueling
         
         # env settings (4 stacked frames of 84 x 84)
         self.state_size = (84, 84, 4)
@@ -75,42 +79,78 @@ class DQN:
 
         self.avg_q_max, self.avg_loss = 0, 0
         
-        ## tf:
+        ## tensorflow setup:
         
         # this is a thing only in tf...
         self.sess = tf.InteractiveSession()
         K.set_session(self.sess)
         
-        # tensorboard:
+        # tensorboard setup:
         self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summary()
         
-        self.summary_writer = tf.summary.FileWriter('summary/breakout_dqn', self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter('summary/' + self.name, self.sess.graph)
         
         self.sess.run(tf.global_variables_initializer())
 
         if self.load_model:
-            self.load_model("breakout_dqn.h5")
+            self.load_model(self.name + ".h5")
 
     def build_model(self, summary = True):
         ''' deep convolutional q network based on deepmind papers'''
         
-        # input state, output q-value
-        model = Sequential()
-        model.add(Conv2D(32, (8, 8), strides=(4, 4), activation='relu',
-                         input_shape=self.state_size))
-        model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu'))
-        model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu'))
-        model.add(Flatten())
-        model.add(Dense(512, activation='relu'))
-        model.add(Dense(self.action_size))
-        
-        if summary:
-            model.summary()
-        return model
+        if self.dueling: # dueling architecture
+            
+            # initial layers are the same
+            input = Input(shape = self.state_size)
+            cnnout = Conv2D(32, (8, 8), strides=(4, 4), activation='relu')(input)
+            cnnout = Conv2D(64, (4, 4), strides=(2, 2), activation='relu')(cnnout)
+            cnnout = Conv2D(64, (3, 3), strides=(1, 1), activation='relu')(cnnout)
+            out = Flatten()(cnnout)
+
+            # splits into dueling: advantage and value
+            ## reference: https://medium.freecodecamp.org/improvements-in-deep-q-learning-dueling-double-dqn-prioritized-experience-replay-and-fixed-58b130cc5682
+            advantage = Dense(512, activation='relu')(out)
+            advantage = Dense(self.action_size)(advantage)
+           
+            value = Dense(512, activation='relu')(out)
+            value =  Dense(1)(value)
+            
+            # before aggregating, we subtract average advantage to acc elerate training
+            advantage = Lambda(lambda a: a[:, :] - K.mean(a[:, :], keepdims=True),
+                               output_shape=(self.action_size,))(advantage)
+                
+            value = Lambda(lambda s: K.expand_dims(s[:, 0], -1),
+                           output_shape=(self.action_size,))(value)
+
+            # sums advantage and value to estimate q-value
+            q_value = add([value, advantage])
+            model = Model(inputs=input, outputs= q_value)
+            
+            if summary:
+                model.summary()
+
+            return model
+            
+        else: # DQN architecture based on DeepMind
+            
+            # input: state output: q-value
+            model = Sequential()
+            model.add(Conv2D(32, (8, 8), strides=(4, 4), activation='relu',
+                             input_shape=self.state_size))
+            model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu'))
+            model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu'))
+            model.add(Flatten())
+            model.add(Dense(512, activation='relu'))
+            model.add(Dense(self.action_size))
+            
+            if summary:
+                model.summary()
+                
+            return model
 
     def update_target_model(self):
         ''' 
-        clones model to target modl
+        clones model to target model
         
         This improves model stability since each update also increases target Q
         as generating targets using older set of paramets adds delay
@@ -134,7 +174,7 @@ class DQN:
 
     def replay_memory(self, state, action, reward, next_state, dead):
         ''' saves current sample as [s, a, r, s'] to replay memory '''
-        
+      
         # normalizes states from [0, 255] to [0, 1]
         state = np.float32(state / 255.0)
         next_state = np.float32(next_state / 255.0)
@@ -143,7 +183,7 @@ class DQN:
 
     def optimizer(self):
         ''' 
-        hacky optimizer with huber loss: 
+        optimizer with huber loss: 
         MSE for error [-1, 1], MAE for errors outside this range  
         '''
         
@@ -164,13 +204,13 @@ class DQN:
         error = K.abs(y - q_value)
 
         # quadratic for error in range [-1, 1], since abs, just [0, 1]
-        quadratic_part = K.clip(error, 0.0, 1.0)
+        quadratic_error = K.clip(error, 0.0, 1.0)
         
         # linear outside the range
-        linear_part = error - quadratic_part
+        linear_error = error - quadratic_error
         
         # huber loss
-        loss = K.mean(0.5 * K.square(quadratic_part) + linear_part)
+        loss = K.mean(0.5 * K.square(quadratic_error) + linear_error)
 
         # learning rate, gradient momentum, min_squared gradient according to paper
         optimizer = RMSprop(lr=self.lr, rho = self.grad_momentum, epsilon=self.min_sq_grad)
@@ -218,7 +258,7 @@ class DQN:
         # predict target q value
         target_value = self.target_model.predict(next_state)
 
-        # need this for DDQN
+        # need this for Double DQN
         if self.double:
             model_val = self.model.predict(next_state)
             
@@ -345,18 +385,22 @@ class DQN:
                     # reset stats after every game
                     self.avg_q_max, self.avg_loss = 0, 0
 
-            if e % 1000 == 0:
-                self.save_model("breakout_dqn.h5")
+            # we backup the model every 100 episodes        
+            if e % 1 == 0:
+                self.save_model(self.name + ".h5")
 
-        # closes tf session and env
+        # save fully trained model
+        self.save_model(self.name + ".h5")
+        
+        # closes tf session and gym env
         self.sess.close()
         env.close()
         
-    def save_model(self, name = "breakout_dqn.h5"):
+    def save_model(self, name = "dqn.h5"):
         ''' saves model locally'''
         self.model.save_weights(name)
         
-    def load_model(self, name = "breakout_dqn.h5"):
+    def load_model(self, name = "dqn.h5"):
         ''' load model saved locally'''
         self.model.load_weights(name)
 
@@ -381,8 +425,20 @@ class DQN:
         
         summary_op = tf.summary.merge_all()
         return summary_placeholders, update_ops, summary_op
-
+    
+    @property
+    def name(self):
+        ''' model name '''
+        name = ['dqn']
+        
+        if self.double:
+            name += ['d']
+        
+        if self.dueling:
+            name += ['dueling']
+        
+        return ''.join(name[::-1])
 
 if __name__ == '__main__':
-    model = DQN(action_size=3, double = True)
+    model = DQN(action_size=3, double = True, dueling = True)
     model.train(total_episodes = EPISODES)
