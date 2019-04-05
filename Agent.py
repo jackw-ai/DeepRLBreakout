@@ -15,6 +15,13 @@ from keras import backend as K
 
 from utils import preprocess, show_video
 
+# global variables for A3C
+global episode
+episode = 0
+MAX_EPISODES = 5000000
+
+env_name = "BreakoutDeterministic-v4"
+
 class Agent(threading.Thread):
     ''' individual advantage actor critic training agent '''
     def __init__(self, action_size, state_size, model, lstm, sess, optimizer, discount_factor, no_op_max, summary_ops):

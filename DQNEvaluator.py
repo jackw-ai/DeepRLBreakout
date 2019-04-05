@@ -162,7 +162,7 @@ class DQNEvaluator:
 
         if render:
             show_video()
-        
+
 if __name__ == '__main__':
-    ai = DQNEvaluator(action_size=3)
+    ai = DQNEvaluator(action_size=3, dueling = False, file = 'ddqn.h5')
     ai.play()

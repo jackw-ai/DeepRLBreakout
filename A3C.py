@@ -14,12 +14,7 @@ from keras.layers.convolutional import Conv2D
 from keras import backend as K
 
 from utils import preprocess, show_video
-from Agent import Agent
-
-# global variables for A3C
-global episode
-episode = 0
-MAX_EPISODES = 5000000
+from Agent import Agent, episode, MAX_EPISODES
 
 env_name = "BreakoutDeterministic-v4"
 
@@ -173,6 +168,7 @@ class A3C:
 
     def actor_optimizer(self):
         ''' optimizer for actor '''
+
         action = K.placeholder(shape=[None, self.action_size])
         advantages = K.placeholder(shape=[None, ])
 
@@ -232,3 +228,8 @@ class A3C:
         update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in range(len(summary_vars))]
         summary_op = tf.summary.merge_all()
         return summary_placeholders, update_ops, summary_op
+
+
+if __name__ == '__main__':
+    a3c = A3C(action_size=3)
+    a3c.train()
