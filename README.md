@@ -1,2 +1,2 @@
-# DQNBreakout
-Replicating DQN papers by DeepMind for Breakout game
+# Deep Reinforcement Learning for Atari Breakout Game
+Replicating Deep RL papers by DeepMind for the Atari Breakout game.
