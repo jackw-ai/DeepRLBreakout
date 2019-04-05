@@ -1,6 +1,12 @@
 # Byte-compiled / optimized / DLL files
 .DS_Store
 
+summary/
+test/
+training/
+
+.h5
+
 __pycache__/
 *.py[cod]
 *$py.class
