@@ -12,7 +12,7 @@ Dueling Deep Q-Network
 
 Asynchronous Advantage Actor Critic 
 
-# Papers
+# Replicated Papers
 
 Playing Atari with Deep Reinforcement Learning:
 
@@ -22,6 +22,10 @@ Human-level control through deep reinforcement learning:
 
 https://web.stanford.edu/class/psych209/Readings/MnihEtAlHassibis15NatureControlDeepRL.pd
 
+Deep Reinforcement Learning with Double Q-learning:
+
+https://arxiv.org/pdf/1509.06461.pdf
+
 Dueling Network Architectures for Deep Reinforcement Learning:
 
 https://arxiv.org/abs/1511.06581
@@ -29,7 +33,6 @@ https://arxiv.org/abs/1511.06581
 Asynchronous Methods for Deep Reinforcement Learning:
 
 https://arxiv.org/abs/1602.01783
-
 
 
 # Other References
