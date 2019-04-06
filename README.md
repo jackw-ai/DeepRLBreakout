@@ -1,16 +1,48 @@
 # Deep Reinforcement Learning for Atari Breakout Game
-Replicating Deep RL papers by DeepMind for the Atari Breakout game.
+Replicating Deep RL papers by DeepMind for the Atari Breakout game. Uses the OpenAI gym environment and Keras for Deep Learning models.
 
 ![game](./sample.gif)
 
-# Models
-Deep Q-Network
+# Models Implemented
+Deep Q-Network (DQN)
 
-Double Deep Q-Network
+Double Deep Q-Network (DDQN)
 
-Dueling Deep Q-Network
+Dueling Deep Q-Network (Dueling DDQN)
 
-Asynchronous Advantage Actor Critic 
+Asynchronous Advantage Actor Critic (A3C)
+
+# Training
+To train a Q-Learning model,
+
+``` python DQN.py```
+
+Specify within the code if `double = True` for Double DQN or `Dueling = True` Dueling DQN.
+
+The exact hyperparameters are according to the paper but are all commented within the code.
+
+To train the A3C model, 
+
+``` python A3C.py```
+
+Specify whether `lstm = True` for a final lstm layer.
+
+Training summary will be outputted to Tensorboard. To visualize,
+
+``` tensorboard --logdir /summary  ```
+
+# Evaluation
+To evaluate a trained Q-Learning model,
+
+```python DQNEvaluator.py```
+
+Specify the number of games (default `games = 1`) and whether to render (default `True`).
+
+To evaluate a trained A3C model,
+
+```python A3CEvaluator.py```
+
+Specify the number of games (default `games = 1`) and whether to render (default `True`).
 
 # Replicated Papers
 
