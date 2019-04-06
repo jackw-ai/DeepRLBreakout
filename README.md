@@ -74,6 +74,8 @@ https://becominghuman.ai/lets-build-an-atari-ai-part-1-dqn-df57e8ff3b26
 
 https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756
 
+https://medium.freecodecamp.org/an-introduction-to-deep-q-learning-lets-play-doom-54d02d8017d8
+
 ## Discounted Reward Calculation for A3C
 https://danieltakeshi.github.io/2018/06/28/a2c-a3c/
 
