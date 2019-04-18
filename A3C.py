@@ -167,39 +167,56 @@ class A3C:
         return actor, critic
 
     def actor_optimizer(self):
-        ''' optimizer for actor '''
+        ''' actor optimizer for policy gradient '''
 
         action = K.placeholder(shape=[None, self.action_size])
         advantages = K.placeholder(shape=[None, ])
 
         policy = self.actor.output
+        
+        # policy pi(a |s_t;theta)
+        prob = K.sum(action * policy, axis=1)
+        
+        # pi(a |s_t;theta) * (R - V)
+        p = K.log(prob + 1e-10) * advantages
+        actor_loss = -K.sum(p)
 
-        good_prob = K.sum(action * policy, axis=1)
-        eligibility = K.log(good_prob + 1e-10) * advantages
-        actor_loss = -K.sum(eligibility)
-
+        # adding entropy of π improved exploration by discouraging convergence to suboptimal
         entropy = K.sum(policy * K.log(policy + 1e-10), axis=1)
         entropy = K.sum(entropy)
 
-        loss = actor_loss + 0.01*entropy
+        # β controls the strength of the entropy regularization term
+        beta = 0.01
+        
+        loss = actor_loss + (beta * entropy)
+        
         optimizer = RMSprop(lr=self.actor_lr, rho=0.99, epsilon=0.01)
+        
         updates = optimizer.get_updates(self.actor.trainable_weights, [], loss)
+
         train = K.function([self.actor.input, action, advantages], [loss], updates=updates)
 
         return train
 
-    # make loss function for Value approximation
     def critic_optimizer(self):
-        ''' optimizer for critic for value approximation '''
+        ''' critic model optimizer for value approximation '''
+        
+        # gamma * max Q
         discounted_reward = K.placeholder(shape=(None, ))
 
+        # Q-value
         value = self.critic.output
 
+        # loss func for Q-learning
         loss = K.mean(K.square(discounted_reward - value))
 
+        # DeepMind uses RMSprop
         optimizer = RMSprop(lr=self.critic_lr, rho=0.99, epsilon=0.01)
+        
         updates = optimizer.get_updates(self.critic.trainable_weights, [], loss)
+        
         train = K.function([self.critic.input, discounted_reward], [loss], updates=updates)
+        
         return train
 
     def load_model(self, name):
